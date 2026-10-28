@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05060a">
+<title>SubstanceCam</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800&display=swap" rel="stylesheet">
+<style>
+:root{--acc:#00e5ff;--ink:#eef1fb;--mut:#8a93a8;--gl:rgba(12,14,22,.62);--ln:rgba(255,255,255,.1)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#05060a;color:var(--ink);font:500 13px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;user-select:none;-webkit-user-select:none}
+button,a{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation;text-decoration:none}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+#stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#000}
+#stage>canvas{position:absolute;inset:0;width:100%;height:100%}
+#top{position:absolute;top:0;left:0;right:0;z-index:4;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 22px;background:linear-gradient(#000b,#0000)}
+.brand{flex:1;display:flex;align-items:center;gap:8px;font:800 12px 'Unbounded',system-ui,sans-serif;white-space:nowrap}
+.led{width:8px;height:8px;border-radius:50%;background:#555;flex:none}
+.led.on{background:var(--acc);box-shadow:0 0 12px var(--acc);animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.3}}
+.tools{display:flex;gap:6px}
+.ib{width:36px;height:36px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--gl);border:1px solid var(--ln);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:16px;transition:transform .15s,box-shadow .25s}
+.ib:active{transform:scale(.9)}
+.ib.on{background:var(--acc);color:#000;border-color:transparent;box-shadow:0 0 16px var(--acc)}
+.ib.rec{background:#ff3d5a;color:#fff;border-color:transparent}
+#hist{position:absolute;right:12px;top:calc(env(safe-area-inset-top,0px) + 66px);z-index:3;width:124px;height:56px;padding:4px;border-radius:12px;background:var(--gl);border:1px solid var(--ln);overflow:hidden}
+#hist canvas{width:100%;height:100%;display:block}
+#fps{position:absolute;left:8px;top:2px;font-size:9px;color:var(--mut)}
+#count{position:absolute;inset:0;z-index:5;display:grid;place-items:center;font:800 min(38vw,34vh) 'Unbounded',system-ui,sans-serif;text-shadow:0 0 40px var(--acc);pointer-events:none;opacity:0}
+#count.show{animation:cnt .95s ease-out}
+@keyframes cnt{0%{opacity:0;transform:scale(1.5)}30%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.8)}}
+#flash{position:absolute;inset:0;z-index:6;background:#fff;opacity:0;pointer-events:none}
+#flash.go{animation:fl .45s ease-out}
+@keyframes fl{from{opacity:.85}to{opacity:0}}
+#toast{position:absolute;left:50%;bottom:18px;z-index:7;transform:translate(-50%,12px);opacity:0;padding:9px 14px;border-radius:12px;background:var(--gl);border:1px solid var(--ln);white-space:nowrap;pointer-events:none;transition:.25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#start{position:absolute;inset:0;z-index:3;display:grid;place-items:center;padding:20px;background:radial-gradient(70% 60% at 50% 50%,#0000 30%,#000c)}
+#start[hidden]{display:none}
+.card{max-width:330px;padding:26px 22px;border-radius:24px;background:var(--gl);border:1px solid var(--ln);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);text-align:center;animation:rise .9s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}}
+.card h1{margin:0 0 10px;font:800 22px 'Unbounded',system-ui,sans-serif}
+.card p{margin:0 0 18px;color:var(--mut);line-height:1.5}
+#go{padding:15px 26px;border-radius:16px;background:var(--acc);color:#000;font:800 15px 'Unbounded',system-ui,sans-serif;box-shadow:0 0 36px var(--acc);transition:transform .3s cubic-bezier(.2,1.5,.4,1)}
+#go:hover{transform:scale(1.05)}
+#go:disabled{opacity:.5}
+#msg{min-height:1.5em;margin:12px 0 0!important;font-size:12px}
+#dock{position:relative;z-index:4;display:flex;flex-direction:column;gap:10px;padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 12px);background:var(--gl);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--ln)}
+#chips,#asp{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+#chips::-webkit-scrollbar,#asp::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:7px 12px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid var(--ln);font-size:12px;white-space:nowrap;transition:.2s}
+.chip.on{background:var(--acc);color:#000;border-color:transparent;font-weight:700;box-shadow:0 0 14px var(--acc)}
+#tune{display:none;grid-template-columns:1fr 1fr;gap:10px 16px}
+#tune.open{display:grid}
+#tune label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--mut)}
+#tune b{color:var(--ink);font-weight:600}
+#tune input{width:100%;accent-color:var(--acc)}
+#asp{grid-column:1/-1}
+#row2{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+#bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+#thumbs{display:flex;gap:6px;justify-self:start;min-width:0;overflow:hidden}
+.th{width:44px;height:44px;flex:none;border-radius:12px;object-fit:cover;border:1px solid var(--ln);cursor:pointer}
+#shot{grid-column:2;width:74px;height:74px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px #000a,0 0 0 7px var(--acc),0 0 30px var(--acc);transition:transform .12s}
+#shot:active{transform:scale(.9)}
+@media (orientation:landscape){
+#app{flex-direction:row}
+#dock{width:200px;height:100%;border-top:0;border-left:1px solid var(--ln);overflow-y:auto;padding:12px}
+#chips,#asp{flex-wrap:wrap;overflow:visible}
+#bar{grid-template-columns:1fr}
+#thumbs{justify-self:center;flex-wrap:wrap;justify-content:center}
+#shot{grid-column:1;justify-self:center}
+}
+#lb{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;background:rgba(3,4,8,.94)}
+#lb.open{display:flex}
+#lbImg{max-width:100%;max-height:72vh;border-radius:16px;box-shadow:0 0 60px #000}
+#lb .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+#lb .btn{padding:11px 15px;border-radius:12px;background:var(--gl);border:1px solid var(--ln)}
+#v{position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+<main id="stage">
+<canvas id="cam"></canvas><canvas id="fxc"></canvas>
+<header id="top">
+<div class="brand"><i class="led" id="led"></i>SubstanceCam</div>
+<div class="tools">
+<button class="ib" id="bFlip" title="Сменить камеру (C)">🔄</button>
+<button class="ib" id="bRot" title="Повернуть кадр (R)">⟳</button>
+<button class="ib" id="bMir" title="Зеркало (M)">↔</button>
+<button class="ib" id="bBg" title="Фон: камера или чёрный (B)">◐</button>
+<button class="ib" id="bFull" title="Во весь экран">⛶</button>
+</div>
+</header>
+<div id="hist"><span id="fps"></span><canvas id="hc" width="120" height="48"></canvas></div>
+<div id="count"></div><div id="flash"></div><div id="toast"></div>
+<section id="start"><div class="card">
+<h1>SubstanceCam</h1>
+<p>Частицы и трекинг рук поверх живой камеры. Работает в браузере на телефоне и ПК, в любой ориентации.</p>
+<button id="go">Запустить камеру</button>
+<p id="msg"></p>
+</div></section>
+</main>
+<footer id="dock">
+<div id="chips"></div>
+<div id="tune">
+<label>Яркость <b id="vB"></b><input type="range" id="sB" min="-100" max="100"></label>
+<label>Контраст <b id="vC"></b><input type="range" id="sC" min="0" max="200"></label>
+<label>Насыщенность <b id="vS"></b><input type="range" id="sS" min="0" max="200"></label>
+<label>Зум <b id="vZ"></b><input type="range" id="sZ" min="100" max="400"></label>
+<div id="asp"></div>
+</div>
+<div id="row2">
+<button class="ib" id="bTune" title="Ползунки и формат кадра">🎚</button>
+<button class="ib" id="bPal" title="Цвет эффектов"></button>
+<button class="ib" id="bTimer" title="Таймер (T)">⏱</button>
+<button class="ib" id="bGrid" title="Сетка (G)">▦</button>
+<button class="ib" id="bMagic" title="Частицы (P)">✦</button>
+<button class="ib" id="bRec" title="Запись видео (V)">●</button>
+</div>
+<div id="bar"><div id="thumbs"></div><button id="shot" title="Снимок (Пробел)"></button></div>
+</footer>
+</div>
+<div id="lb">
+<img id="lbImg" alt="">
+<div class="row">
+<button class="btn" id="lbPrev">‹</button>
+<a class="btn" id="lbDl">Скачать</a>
+<button class="btn" id="lbShare">Поделиться</button>
+<button class="btn" id="lbDel">Удалить</button>
+<button class="btn" id="lbNext">›</button>
+<button class="btn" id="lbX">Закрыть</button>
+</div>
+</div>
+<video id="v" playsinline muted autoplay></video>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const PAL=[[0,229,255],[255,43,214],[170,255,0],[255,190,0]];
+const FX=['Оригинал','Ч/Б','Нуар','Сепия','Сочно','Тепло','Холод','Негатив','Тепловизор','Матрица','Постер','Глитч','Пиксель'];
+const ASP=[['Авто',0],['1:1',1],['4:3',4/3],['3:4',.75],['16:9',16/9],['9:16',9/16]];
+const BONES=[[0,1],[1,2],[2,3],[3,4],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20],[2,5]];
+const KEY='substancecam.v2';
+const S={fxi:0,b:0,c:100,s:100,zoom:1,ai:0,grid:false,magic:true,bg:true,pal:0,mirror:true,rot:0,rotManual:false,facing:'user',timer:0};
+try{Object.assign(S,JSON.parse(localStorage.getItem(KEY))||{})}catch(e){}
+const stage=$('stage'),V=$('v'),cam=$('cam'),fxc=$('fxc'),hc=$('hc');
+const cx=cam.getContext('2d'),fx=fxc.getContext('2d'),hx=hc.getContext('2d');
+const work=document.createElement('canvas'),wx=work.getContext('2d',{willReadFrequently:true});
+const mini=document.createElement('canvas'),mx=mini.getContext('2d');
+const hs=document.createElement('canvas');hs.width=64;hs.height=36;
+const hsx=hs.getContext('2d',{willReadFrequently:true});
+const recC=document.createElement('canvas'),rx=recC.getContext('2d');
+const TL=new Uint8ClampedArray(768),ST=[[0,0,40],[20,0,170],[0,200,230],[255,230,0],[255,30,0],[255,255,255]];
+for(let i=0;i<256;i++){const t=i/255*5,k=Math.min(4,t|0),f=t-k,a=ST[k],b=ST[k+1];for(let j=0;j<3;j++)TL[i*3+j]=a[j]+(b[j]-a[j])*f}
+let W=0,H=0,K=1,P=[],SP=null,ML=null,busy=false,hands=[],live=false,stream=null,rec=null,gal=[],cams=[],fc=0,ft=0,ht=0,LI=0,AC=null,pd=0,busyShot=false,tt=0;
+const AR=()=>ASP[S.ai][1];
+const adj=()=>S.b!==0||S.c!==100||S.s!==100;
+const col=a=>`rgb(${a.join(',')})`;
+const mp=(l,g)=>{const u=l.x*V.videoWidth,v=l.y*V.videoHeight;return[g.a*u+g.c*v+g.e,g.b*u+g.d*v+g.f]};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function sprite(){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),[r,q,b]=PAL[S.pal],gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'#fff');gr.addColorStop(.2,`rgba(${r},${q},${b},.9)`);gr.addColorStop(1,`rgba(${r},${q},${b},0)`);g.fillStyle=gr;g.fillRect(0,0,64,64);SP=c}
+function geo(w,h,ar){
+ const vw=V.videoWidth,vh=V.videoHeight;if(!vw||!vh)return null;
+ const od=S.rot&1,ew=od?vh:vw,eh=od?vw:vh,t=ar||w/h;
+ let fw=w,fh=h;if(ar){if(w/h>ar){fh=h;fw=h*ar}else{fw=w;fh=w/ar}}
+ let rw=ew,rh=eh;if(ew/eh>t)rw=eh*t;else rh=ew/t;
+ rw/=S.zoom;rh/=S.zoom;
+ const cxv=(ew-rw)/2,cyv=(eh-rh)/2,kx=fw/rw,ky=fh/rh,ox=(w-fw)/2,oy=(h-fh)/2,sg=S.mirror?-1:1,bs=S.mirror?rw+cxv:-cxv;
+ const [p,q,r0,s,u2,w0]=[[1,0,0,0,1,0],[0,-1,vh,1,0,0],[-1,0,vw,0,-1,vh],[0,1,0,-1,0,vw]][S.rot];
+ return{a:kx*sg*p,b:ky*s,c:kx*sg*q,d:ky*u2,e:ox+kx*(sg*r0+bs),f:oy+ky*(w0-cyv),ox,oy,fw,fh,rw,rh};
+}
+function paint(c,w,h,ar){
+ c.setTransform(1,0,0,1,0,0);c.fillStyle='#000';c.fillRect(0,0,w,h);
+ const g=geo(w,h,ar);if(!g)return null;
+ c.save();c.beginPath();c.rect(g.ox,g.oy,g.fw,g.fh);c.clip();
+ c.setTransform(g.a,g.b,g.c,g.d,g.e,g.f);c.drawImage(V,0,0);c.restore();return g;
+}
+function pass(c,w,h){
+ const im=c.getImageData(0,0,w,h),d=im.data,n=d.length,m=S.fxi,Bv=S.b,Cc=S.c/100,Sa=S.s/100,src=m===11?d.slice():null,q6=v=>(v<0?0:v>255?255:v)>>6;
+ for(let i=0;i<n;i+=4){
+  let r=d[i],g=d[i+1],b=d[i+2],L=.3*r+.59*g+.11*b;
+  r=L+(r-L)*Sa;g=L+(g-L)*Sa;b=L+(b-L)*Sa;
+  r=(r-128)*Cc+128+Bv;g=(g-128)*Cc+128+Bv;b=(b-128)*Cc+128+Bv;
+  switch(m){
+   case 1:L=.3*r+.59*g+.11*b;r=g=b=L;break;
+   case 2:L=(.3*r+.59*g+.11*b-128)*1.6+128;r=g=b=L;break;
+   case 3:{const R=r,G=g,B=b;r=.393*R+.769*G+.189*B;g=.349*R+.686*G+.168*B;b=.272*R+.534*G+.131*B;break}
+   case 4:L=.3*r+.59*g+.11*b;r=L+(r-L)*1.7;g=L+(g-L)*1.7;b=L+(b-L)*1.7;break;
+   case 5:r+=40;g+=8;b-=32;break;
+   case 6:r-=32;b+=40;break;
+   case 7:r=255-r;g=255-g;b=255-b;break;
+   case 8:{const k=(.3*r+.59*g+.11*b)|0,j=k<0?0:k>255?255:k;r=TL[j*3];g=TL[j*3+1];b=TL[j*3+2];break}
+   case 9:L=.3*r+.59*g+.11*b;r=L*.12;g=L*1.25;b=L*.22;break;
+   case 10:r=q6(r)*85;g=q6(g)*85;b=q6(b)*85;break;
+   case 11:{const j=i+24<n?i+24:i,k=i-24>=0?i-24:i;r=src[j];b=src[k];if(((i>>2)/w|0)%3===0){r*=.8;g*=.8;b*=.8}break}
+  }
+  d[i]=r;d[i+1]=g;d[i+2]=b;
+ }
+ c.putImageData(im,0,0);
+}
+function frame(c,w,h,ar){
+ if(!paint(c,w,h,ar))return;
+ if(S.fxi===12){const mh=Math.max(1,Math.round(36*h/w));if(mini.width!==36)mini.width=36;if(mini.height!==mh)mini.height=mh;mx.drawImage(c.canvas,0,0,36,mh);c.imageSmoothingEnabled=false;c.drawImage(mini,0,0,w,h);c.imageSmoothingEnabled=true}
+ if((S.fxi!==0&&S.fxi!==12)||adj())pass(c,w,h);
+}
+function preview(){
+ if(S.fxi===0&&!adj()){paint(cx,W,H,AR());return}
+ const ww=Math.min(W,360),wh=Math.round(H*ww/W);
+ if(work.width!==ww)work.width=ww;if(work.height!==wh)work.height=wh;
+ frame(wx,ww,wh,AR());cx.imageSmoothingEnabled=true;cx.drawImage(work,0,0,W,H);
+}
+function hist(){
+ if(!paint(hsx,64,36,AR()))return;
+ const d=hsx.getImageData(0,0,64,36).data,bins=new Float32Array(32);
+ for(let i=0;i<d.length;i+=4)bins[(.3*d[i]+.59*d[i+1]+.11*d[i+2])/8|0]++;
+ const top=Math.max(...bins)||1;hx.clearRect(0,0,120,48);hx.fillStyle=col(PAL[S.pal]);
+ bins.forEach((v,i)=>{const h=v/top*46;hx.fillRect(i*3.75,48-h,2.9,h)});
+}
+function parts(T){
+ const RA=180*K,R2=RA*RA,L2=(80*K)*(80*K),n=P.length;
+ for(const p of P){
+  for(const t of T){const dx=t.x-p.x,dy=t.y-p.y,d2=dx*dx+dy*dy;if(d2<R2&&d2>4){const d=Math.sqrt(d2),f=(1-d/RA)*.5*t.w/d;p.vx+=dx*f;p.vy+=dy*f}}
+  p.vx*=.94;p.vy*=.94;p.x+=p.vx;p.y+=p.vy;
+  if(p.x<0)p.x+=W;else if(p.x>W)p.x-=W;if(p.y<0)p.y+=H;else if(p.y>H)p.y-=H;
+ }
+ fx.beginPath();
+ for(let i=0;i<n;i++){const a=P[i];for(let j=i+1;j<n;j++){const b=P[j],dx=a.x-b.x,dy=a.y-b.y;if(dx*dx+dy*dy<L2){fx.moveTo(a.x,a.y);fx.lineTo(b.x,b.y)}}}
+ fx.strokeStyle=`rgba(${PAL[S.pal]},.2)`;fx.lineWidth=K;fx.stroke();
+ for(const p of P){const s=p.r*9*K;fx.drawImage(SP,p.x-s/2,p.y-s/2,s,s)}
+}
+function overlay(g){
+ fx.clearRect(0,0,W,H);
+ const c=col(PAL[S.pal]),act=g?hands:[],HP=act.map(h=>h.map(l=>mp(l,g))),T=[],pins=[];
+ if(g&&S.ai){const L=22*K;fx.strokeStyle=c;fx.lineWidth=3*K;fx.beginPath();for(const[x,y,dx,dy]of[[g.ox,g.oy,1,1],[g.ox+g.fw,g.oy,-1,1],[g.ox,g.oy+g.fh,1,-1],[g.ox+g.fw,g.oy+g.fh,-1,-1]]){fx.moveTo(x,y+dy*L);fx.lineTo(x,y);fx.lineTo(x+dx*L,y)}fx.stroke()}
+ if(g&&S.grid){fx.strokeStyle='rgba(255,255,255,.35)';fx.lineWidth=K;fx.beginPath();for(let i=1;i<3;i++){const x=g.ox+g.fw*i/3,y=g.oy+g.fh*i/3;fx.moveTo(x,g.oy);fx.lineTo(x,g.oy+g.fh);fx.moveTo(g.ox,y);fx.lineTo(g.ox+g.fw,y)}fx.stroke()}
+ act.forEach((h,i)=>{
+  for(const p of HP[i])T.push({x:p[0],y:p[1],w:1});
+  if(Math.hypot(h[4].x-h[8].x,h[4].y-h[8].y)<.06){const m=mp({x:(h[4].x+h[8].x)/2,y:(h[4].y+h[8].y)/2},g);pins.push(m);T.push({x:m[0],y:m[1],w:4})}
+ });
+ if(S.magic)parts(T);
+ fx.strokeStyle=c;fx.lineWidth=2*K;fx.lineCap='round';fx.beginPath();
+ for(const p of HP)for(const[a,b]of BONES){fx.moveTo(p[a][0],p[a][1]);fx.lineTo(p[b][0],p[b][1])}
+ fx.stroke();
+ for(const p of HP)for(const[x,y]of p){const s=14*K;fx.drawImage(SP,x-s/2,y-s/2,s,s)}
+ for(const m of pins){fx.beginPath();fx.arc(m[0],m[1],18*K,0,6.3);fx.stroke()}
+}
+function seed(){const n=Math.min(260,Math.max(90,W*H/(9000*K*K)|0));P=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,vx:Math.random()*2-1,vy:Math.random()*2-1,r:.6+Math.random()*1.6}))}
+function fit(){
+ const r=stage.getBoundingClientRect();K=Math.min(devicePixelRatio||1,2);
+ const w=Math.max(2,Math.round(r.width*K)),h=Math.max(2,Math.round(r.height*K));
+ if(w===W&&h===H)return;
+ if(P.length&&W){for(const p of P){p.x*=w/W;p.y*=h/H}}
+ W=w;H=h;cam.width=fxc.width=W;cam.height=fxc.height=H;
+ if(!P.length)seed();
+}
+function loop(t){
+ requestAnimationFrame(loop);
+ fc++;if(t-ft>1000){$('fps').textContent=Math.round(fc*1000/(t-ft))+' fps';fc=0;ft=t}
+ if(!W)return;
+ const on=live&&V.readyState>=2&&V.videoWidth>0;
+ if(on){
+  if(S.bg)preview();else{cx.fillStyle='#000';cx.fillRect(0,0,W,H)}
+  if(ML&&!busy){busy=true;ML.send({image:V}).catch(()=>{}).then(()=>{busy=false})}
+  if(++ht%8===0)hist();
+ }else{cx.fillStyle='#000';cx.fillRect(0,0,W,H)}
+ overlay(on?geo(W,H,AR()):null);
+ if(rec){rx.drawImage(cam,0,0);rx.drawImage(fxc,0,0)}
+}
+function halt(){stream?.getTracks().forEach(t=>t.stop());live=false}
+function autoRot(){
+ if(S.rotManual||!V.videoWidth)return;
+ const portrait=screen.orientation?/portrait/.test(screen.orientation.type):screen.height>screen.width;
+ S.rot=portrait&&V.videoWidth>V.videoHeight?(S.facing==='user'?3:1):0;
+}
+async function listCams(){
+ try{cams=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput')}catch(e){cams=[]}
+ const cur=stream?.getVideoTracks()[0]?.getSettings().deviceId;
+ S.ci=Math.max(0,cams.findIndex(d=>d.deviceId===cur));
+}
+async function openCam(id){
+ if(!navigator.mediaDevices?.getUserMedia)throw Object.assign(new Error('no'),{name:'NotSupportedError'});
+ halt();
+ const hd={width:{ideal:1920},height:{ideal:1080}};
+ let st;
+ try{st=await navigator.mediaDevices.getUserMedia({audio:false,video:id?{...hd,deviceId:{exact:id}}:{...hd,facingMode:{ideal:S.facing}}})}
+ catch(e){if(e.name==='NotAllowedError')throw e;st=await navigator.mediaDevices.getUserMedia({audio:false,video:true})}
+ stream=st;V.srcObject=st;V.play().catch(()=>{});live=true;
+ const lab=st.getVideoTracks()[0]?.label||'';
+ S.facing=/back|rear|environment|задн/i.test(lab)?'environment':'user';
+ S.mirror=S.facing==='user';S.rotManual=false;
+ await listCams();autoRot();wake();upd();
+}
+async function flip(){
+ if(!live)return toast('Сначала запусти камеру');
+ try{
+  await listCams();
+  if(cams.length>1){S.ci=(S.ci+1)%cams.length;await openCam(cams[S.ci].deviceId)}
+  else{S.facing=S.facing==='user'?'environment':'user';await openCam()}
+  toast('Камера переключена');
+ }catch(e){toast(explain(e))}
+}
+function explain(e){
+ const n=e?.name;
+ if(!navigator.mediaDevices||n==='NotSupportedError')return'Браузер не даёт доступ к камере. Открой сайт по HTTPS.';
+ if(n==='NotAllowedError')return'Доступ к камере запрещён. Разреши камеру в настройках браузера и обнови страницу.';
+ if(n==='NotFoundError')return'Камера не найдена. Проверь подключение.';
+ if(n==='NotReadableError')return'Камера занята другим приложением. Закрой его и попробуй снова.';
+ return'Не удалось включить камеру: '+(e?.message||n||'неизвестная ошибка');
+}
+async function wake(){try{await navigator.wakeLock?.request('screen')}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&live)wake()});
+function initHands(){
+ if(ML)return;
+ if(typeof Hands==='undefined'){toast('Трекинг рук не загрузился, эффекты работают без него');return}
+ ML=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`});
+ ML.setOptions({maxNumHands:2,modelComplexity:matchMedia('(pointer:coarse)').matches?0:1,minDetectionConfidence:.5,minTrackingConfidence:.5});
+ ML.onResults(r=>{hands=r.multiHandLandmarks||[]});
+}
+async function begin(){
+ $('go').disabled=true;$('msg').textContent='Запрашиваю доступ к камере…';
+ try{await openCam();$('start').hidden=true;initHands()}
+ catch(e){$('msg').textContent=explain(e);$('go').disabled=false}
+}
+function cnt(t){const el=$('count');el.textContent=t;el.classList.remove('show');if(t!==''){void el.offsetWidth;el.classList.add('show')}}
+function flash(){const f=$('flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go')}
+function beep(f,d){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.frequency.value=f;g.gain.setValueAtTime(.2,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d)}catch(e){}}
+function toast(t){const el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),1800)}
+function thumbs(){$('thumbs').innerHTML=gal.slice(0,5).map((g,i)=>`<img class="th" src="${g.url}" data-i="${i}" alt="">`).join('')}
+async function shootNow(){
+ if(!live)return toast('Сначала запусти камеру');
+ if(busyShot)return;busyShot=true;
+ try{
+  for(let s=S.timer;s>0;s--){cnt(s);beep(640,.1);await sleep(1000)}
+  if(S.timer)cnt('');
+  const g=geo(W,H,AR());if(!g)return;
+  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(g.rw));c.height=Math.max(1,Math.round(g.rh));
+  frame(c.getContext('2d'),c.width,c.height,0);
+  gal.unshift({url:c.toDataURL('image/jpeg',.92)});if(gal.length>24)gal.length=24;
+  flash();beep(1900,.07);navigator.vibrate?.(20);thumbs();toast('Снимок сохранён');
+ }catch(e){toast('Снимок не получился')}
+ finally{busyShot=false}
+}
+function save(url,name){const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove()}
+function recToggle(){
+ if(rec)return rec.stop();
+ if(!live)return toast('Сначала запусти камеру');
+ const type=['video/webm;codecs=vp9','video/webm','video/mp4'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t));
+ if(!type)return toast('Запись не поддерживается в этом браузере');
+ recC.width=W;recC.height=H;const chunks=[];
+ rec=new MediaRecorder(recC.captureStream(30),{mimeType:type});
+ rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+ rec.onstop=()=>{save(URL.createObjectURL(new Blob(chunks,{type:type.split(';')[0]})),`substancecam-${Date.now()}.${type.includes('mp4')?'mp4':'webm'}`);rec=null;upd()};
+ rec.start(250);upd();toast('Запись идёт');
+}
+function openLb(i){LI=i;$('lb').classList.add('open');lbShow()}
+function lbShow(){
+ if(!gal.length)return closeLb();
+ LI=(LI+gal.length)%gal.length;const g=gal[LI];
+ $('lbImg').src=g.url;$('lbDl').href=g.url;$('lbDl').download=`substancecam-${LI+1}.jpg`;
+}
+function closeLb(){$('lb').classList.remove('open')}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify({fxi:S.fxi,b:S.b,c:S.c,s:S.s,zoom:S.zoom,ai:S.ai,grid:S.grid,magic:S.magic,bg:S.bg,pal:S.pal,mirror:S.mirror}))}catch(e){}}
+function upd(){
+ const on=(id,v)=>$(id).classList.toggle('on',!!v);
+ on('bMir',S.mirror);on('bBg',S.bg);on('bMagic',S.magic);on('bGrid',S.grid);on('bTune',$('tune').classList.contains('open'));
+ const r=$('bRec');r.classList.toggle('rec',!!rec);r.textContent=rec?'■':'●';
+ $('bRot').textContent=S.rot*90+'°';
+ $('bTimer').textContent=S.timer?S.timer+'с':'⏱';
+ $('bPal').style.background=col(PAL[S.pal]);
+ document.documentElement.style.setProperty('--acc',col(PAL[S.pal]));
+ document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('on',+b.dataset.f===S.fxi));
+ document.querySelectorAll('[data-a]').forEach(b=>b.classList.toggle('on',+b.dataset.a===S.ai));
+ $('sB').value=S.b;$('sC').value=S.c;$('sS').value=S.s;$('sZ').value=S.zoom*100;
+ $('vB').textContent=S.b;$('vC').textContent=S.c+'%';$('vS').textContent=S.s+'%';$('vZ').textContent=S.zoom.toFixed(1)+'×';
+ $('led').classList.toggle('on',live);
+ persist();
+}
+$('chips').innerHTML=FX.map((n,i)=>`<button class="chip" data-f="${i}">${n}</button>`).join('');
+$('asp').innerHTML=ASP.map((a,i)=>`<button class="chip" data-a="${i}">${a[0]}</button>`).join('');
+$('chips').onclick=e=>{const b=e.target.closest('[data-f]');if(b){S.fxi=+b.dataset.f;upd()}};
+$('asp').onclick=e=>{const b=e.target.closest('[data-a]');if(b){S.ai=+b.dataset.a;upd()}};
+[['sB','b'],['sC','c'],['sS','s']].forEach(([id,k])=>$(id).oninput=e=>{S[k]=+e.target.value;upd()});
+$('sZ').oninput=e=>{S.zoom=e.target.value/100;upd()};
+$('bFlip').onclick=flip;
+$('bRot').onclick=()=>{S.rot=(S.rot+1)%4;S.rotManual=true;upd()};
+$('bMir').onclick=()=>{S.mirror=!S.mirror;upd()};
+$('bBg').onclick=()=>{S.bg=!S.bg;upd()};
+$('bFull').onclick=()=>document.fullscreenElement?document.exitFullscreen?.():document.documentElement.requestFullscreen?.().catch(()=>{});
+$('bPal').onclick=()=>{S.pal=(S.pal+1)%PAL.length;sprite();upd()};
+$('bTimer').onclick=()=>{S.timer=[0,3,5,10][([0,3,5,10].indexOf(S.timer)+1)%4];upd()};
+$('bGrid').onclick=()=>{S.grid=!S.grid;upd()};
+$('bMagic').onclick=()=>{S.magic=!S.magic;upd()};
+$('bTune').onclick=()=>{$('tune').classList.toggle('open');upd()};
+$('bRec').onclick=recToggle;
+$('shot').onclick=shootNow;
+$('go').onclick=begin;
+$('thumbs').onclick=e=>{const i=e.target.dataset.i;if(i!==undefined)openLb(+i)};
+$('lbPrev').onclick=()=>{LI--;lbShow()};
+$('lbNext').onclick=()=>{LI++;lbShow()};
+$('lbX').onclick=closeLb;
+$('lbDel').onclick=()=>{gal.splice(LI,1);thumbs();lbShow()};
+$('lbShare').onclick=async()=>{try{const b=await(await fetch($('lbImg').src)).blob(),f=new File([b],'substancecam.jpg',{type:'image/jpeg'});if(navigator.canShare?.({files:[f]}))await navigator.share({files:[f],title:'SubstanceCam'});else toast('Здесь не умею делиться, скачай файл')}catch(e){}};
+addEventListener('keydown',e=>{
+ if($('lb').classList.contains('open')){if(e.key==='Escape')closeLb();if(e.key==='ArrowLeft')$('lbPrev').click();if(e.key==='ArrowRight')$('lbNext').click();return}
+ if(e.target.matches('input'))return;
+ if(e.target.matches('button')&&(e.key===' '||e.key==='Enter'))return;
+ if(e.key===' '||e.key==='Enter'){e.preventDefault();shootNow();return}
+ const A={c:flip,r:()=>$('bRot').click(),m:()=>$('bMir').click(),b:()=>$('bBg').click(),g:()=>$('bGrid').click(),p:()=>$('bMagic').click(),t:()=>$('bTimer').click(),v:recToggle,f:()=>{S.fxi=(S.fxi+1)%FX.length;upd()}}[e.key.toLowerCase()];
+ if(A)A();
+});
+stage.addEventListener('touchmove',e=>{if(e.touches.length!==2)return;const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pd)S.zoom=Math.min(4,Math.max(1,S.zoom*d/pd));pd=d;upd()},{passive:true});
+stage.addEventListener('touchend',()=>{pd=0});
+sprite();fit();
+new ResizeObserver(fit).observe(stage);
+addEventListener('resize',fit);
+screen.orientation?.addEventListener?.('change',()=>{autoRot();fit()});
+V.addEventListener('loadedmetadata',autoRot);
+upd();thumbs();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
